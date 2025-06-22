@@ -98,7 +98,8 @@ explanation:
 assignment content from PDF:
 {pdf_text}
 
-The output should be a formatted structure text in the form of points containing the feedback explaining how you graded that assignment."""
+The output should be a formatted structure text in the form of points containing the feedback explaining how you graded that assignment.
+Do not give a grade range, give a proper grade."""
         
         # Send to Anthropic Claude with PDF content
         message = client.messages.create(
@@ -166,9 +167,10 @@ def redo_prompt_anthropic():
             }), 400
 
         # Create the prompt with initial feedback and professor input
-        prompt = f"""You are a voice assistant. You gave points to the assignment and feedback to the student. You receive an input which is a text from the professor and it could be a raw STT. Giving more weightage to professor's input, modify your initial feedback and points based on the professor's input.
+        prompt = f"""You are a voice assistant. You gave points to the assignment and feedback to the student. Modify your initial feedback and points based on the professor's input.
+        If professor's input is positive, you should give more points. If professor's input is negative, you should reduce points.
 
-feedback and points to the students:
+initial feedback and points to the students:
 {initial_feedback}
 
 professor's input:
