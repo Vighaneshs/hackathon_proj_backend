@@ -90,7 +90,28 @@ def prompt_anthropic():
             }), 400
         
         # Create the prompt with PDF content and explanation
-        prompt = f"""You are a voice assistant. You take an input which is a text explaining how you have to grade the assignment and the assignment content from a PDF.
+        prompt = f"""You are a grading assistant. You will receive:
+1. The assignment content (from a PDF).
+2. (OPTIONAL) A grading rubric with detailed criteria and grade weights.
+note: if the rubric is not provided, you should grade the assignment based on the assignment content and create an arbitrary rubric by yourself.
+
+Your task is to:
+- Analyze the assignment using the rubric criteria.
+- Provide concise, bullet-pointed feedback for each criterion.
+- Assign a numeric score for each rubric item.
+- Sum the individual rubric scores to calculate the final grade out of 100.
+- Insert occasional, relevant references to course content (e.g., concepts, theorists, readings) to support your evaluation.
+
+Output format (strictly follow):
+Final Grade: XX/100 (in bigger text)
+
+- Criterion Title (X pts): [score]/[max] (bold criteria title)
+  - • Bullet-point feedback 1
+  - • Bullet-point feedback 2
+  - • Make arbitary references to course material (e.g., “...refer to section 2.8 for more info”)
+
+Do not include any other text in your response.
+
 
 explanation:
 {explanation}
