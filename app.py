@@ -2,7 +2,11 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import anthropic
 import os
+import base64
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+import PyPDF2
+import io
 
 # Load environment variables
 load_dotenv()
@@ -10,40 +14,100 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+# Configure upload settings
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+ALLOWED_EXTENSIONS = {'pdf'}
+
+def allowed_file(filename):
+    """Check if the file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def extract_text_from_pdf(pdf_file):
+    """Extract text content from PDF file"""
+    try:
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return text.strip()
+    except Exception as e:
+        raise Exception(f"Error extracting text from PDF: {str(e)}")
+
+def encode_pdf_to_base64(pdf_file):
+    """Encode PDF file to base64 string"""
+    try:
+        pdf_file.seek(0)  # Reset file pointer to beginning
+        pdf_content = pdf_file.read()
+        return base64.b64encode(pdf_content).decode('utf-8')
+    except Exception as e:
+        raise Exception(f"Error encoding PDF to base64: {str(e)}")
+
 # Initialize Anthropic client
 client = anthropic.Anthropic(
     api_key=os.getenv("ANTHROPIC_API_KEY")
 )
 
-@app.route('/api/prompt', methods=['POST'])
+@app.route('/api/prompt_initial', methods=['POST'])
 def prompt_anthropic():
     """
-    API endpoint that takes a string input and sends it to Anthropic's Claude API
+    API endpoint that takes a PDF file and explanation, sends them to Anthropic's Claude API
     """
     try:
-        # Get JSON data from request
-        data = request.get_json()
-        
-        if not data or 'message' not in data:
+        # Check if PDF file is present in the request
+        if 'pdf_file' not in request.files:
             return jsonify({
-                'error': 'Missing "message" field in request body'
+                'error': 'Missing PDF file in request'
             }), 400
         
-        user_message = data['message']
+        pdf_file = request.files['pdf_file']
         
-        if not user_message or not isinstance(user_message, str):
+        # Check if file was selected
+        if pdf_file.filename == '':
             return jsonify({
-                'error': 'Message must be a non-empty string'
+                'error': 'No file selected'
             }), 400
         
-        # Send message to Anthropic Claude
+        # Check if file type is allowed
+        if not allowed_file(pdf_file.filename):
+            return jsonify({
+                'error': 'Only PDF files are allowed'
+            }), 400
+        
+        # Get explanation from form data
+        explanation = request.form.get('explanation', '')
+        
+        if not explanation:
+            return jsonify({
+                'error': 'Missing "explanation" field in request'
+            }), 400
+        
+        # Extract text from PDF
+        pdf_text = extract_text_from_pdf(pdf_file)
+        
+        if not pdf_text.strip():
+            return jsonify({
+                'error': 'Could not extract text from PDF or PDF is empty'
+            }), 400
+        
+        # Create the prompt with PDF content and explanation
+        prompt = f"""You are a voice assistant. You take an input which is a text explaining how you have to grade the assignment and the assignment content from a PDF.
+
+explanation:
+{explanation}
+
+assignment content from PDF:
+{pdf_text}
+
+The output should be a formatted structure text in the form of points containing the feedback explaining how you graded that assignment."""
+        
+        # Send to Anthropic Claude with PDF content
         message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-4-sonnet-20250514",
             max_tokens=1000,
             messages=[
                 {
                     "role": "user",
-                    "content": user_message
+                    "content": prompt
                 }
             ]
         )
@@ -54,7 +118,9 @@ def prompt_anthropic():
         return jsonify({
             'success': True,
             'response': response_content,
-            'input_message': user_message
+            'pdf_filename': secure_filename(pdf_file.filename),
+            'explanation': explanation,
+            'pdf_text_length': len(pdf_text)
         })
         
     except anthropic.AuthenticationError:
@@ -95,19 +161,23 @@ def home():
     return jsonify({
         'message': 'Flask Backend with Anthropic Integration',
         'endpoints': {
-            'POST /api/prompt': 'Send a message to Anthropic Claude API',
+            'POST /api/prompt_initial': 'Send a PDF file and explanation to Anthropic Claude API',
             'GET /api/health': 'Health check endpoint',
             'GET /': 'This documentation'
         },
         'usage': {
-            'POST /api/prompt': {
-                'body': {
-                    'message': 'Your string input here'
+            'POST /api/prompt_initial': {
+                'method': 'multipart/form-data',
+                'fields': {
+                    'pdf_file': 'PDF file to be processed',
+                    'explanation': 'Text explaining how to grade the assignment'
                 },
                 'response': {
                     'success': True,
                     'response': 'Claude\'s response',
-                    'input_message': 'Your original message'
+                    'pdf_filename': 'Name of uploaded PDF',
+                    'explanation': 'Original explanation',
+                    'pdf_text_length': 'Length of extracted text'
                 }
             }
         }

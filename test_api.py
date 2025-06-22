@@ -1,9 +1,10 @@
 import requests
 import json
+import os
 
 def test_api():
     """
-    Test script to demonstrate the Flask API usage
+    Test script to demonstrate the Flask API usage with PDF upload
     """
     base_url = "http://localhost:5000"
     
@@ -17,23 +18,38 @@ def test_api():
         print("Error: Could not connect to the server. Make sure the Flask app is running.\n")
         return
     
-    # Test prompt endpoint
-    print("Testing prompt endpoint...")
-    test_message = "Hello! Can you tell me a short joke?"
+    # Test prompt_initial endpoint with PDF
+    print("Testing prompt_initial endpoint with PDF...")
+    
+    # Check if essay PDF exists
+    test_pdf_path = "essay.pdf"
+    if not os.path.exists(test_pdf_path):
+        print(f"Warning: Essay PDF file '{test_pdf_path}' not found.")
+        print("Creating a simple test essay PDF or you can provide your own essay.pdf file.")
+        print("For testing, you can create a simple PDF with some essay content.\n")
+        return
+    
+    explanation = "Grade this essay based on clarity, coherence, argument strength, and writing quality. Provide detailed feedback on structure, content, and style."
     
     try:
-        response = requests.post(
-            f"{base_url}/api/prompt",
-            json={"message": test_message},
-            headers={"Content-Type": "application/json"}
-        )
+        with open(test_pdf_path, 'rb') as pdf_file:
+            files = {'pdf_file': (test_pdf_path, pdf_file, 'application/pdf')}
+            data = {'explanation': explanation}
+            
+            response = requests.post(
+                f"{base_url}/api/prompt_initial",
+                files=files,
+                data=data
+            )
         
         print(f"Status code: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
             print(f"Success: {data['success']}")
-            print(f"Input message: {data['input_message']}")
+            print(f"PDF filename: {data['pdf_filename']}")
+            print(f"Explanation: {data['explanation']}")
+            print(f"PDF text length: {data['pdf_text_length']} characters")
             print(f"Claude's response: {data['response']}")
         else:
             print(f"Error: {response.json()}")
@@ -42,6 +58,74 @@ def test_api():
         print(f"Request error: {e}")
     except json.JSONDecodeError as e:
         print(f"JSON decode error: {e}")
+    except FileNotFoundError:
+        print(f"File not found: {test_pdf_path}")
+
+def create_test_essay_pdf():
+    """
+    Create a simple test essay PDF for demonstration purposes
+    """
+    try:
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter
+        
+        filename = "essay.pdf"
+        c = canvas.Canvas(filename, pagesize=letter)
+        width, height = letter
+        
+        # Add title
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(100, height - 100, "Sample Essay: The Impact of Technology on Education")
+        
+        # Add content
+        c.setFont("Helvetica", 12)
+        content = [
+            "Introduction:",
+            "Technology has revolutionized the way we approach education in the 21st century.",
+            "From online learning platforms to interactive digital tools, the integration of",
+            "technology in educational settings has created both opportunities and challenges.",
+            "",
+            "Body Paragraph 1:",
+            "One of the most significant benefits of technology in education is the",
+            "accessibility it provides. Students can now access educational resources from",
+            "anywhere in the world, breaking down geographical barriers and creating",
+            "opportunities for lifelong learning. Online courses, digital libraries, and",
+            "educational apps have made learning more flexible and personalized.",
+            "",
+            "Body Paragraph 2:",
+            "However, the rapid adoption of technology also presents challenges.",
+            "Digital divide issues persist, with some students lacking access to",
+            "necessary devices and internet connectivity. Additionally, concerns about",
+            "screen time and the potential for distraction in digital learning",
+            "environments require careful consideration and balanced approaches.",
+            "",
+            "Conclusion:",
+            "While technology offers tremendous potential to enhance education, its",
+            "implementation must be thoughtful and inclusive. Educators and policymakers",
+            "must work together to ensure that technological advances benefit all",
+            "students and contribute to meaningful learning outcomes."
+        ]
+        
+        y_position = height - 150
+        for line in content:
+            c.drawString(100, y_position, line)
+            y_position -= 20
+        
+        c.save()
+        print(f"Created test essay PDF: {filename}")
+        return filename
+        
+    except ImportError:
+        print("reportlab not available. Please install it with: pip install reportlab")
+        return None
+    except Exception as e:
+        print(f"Error creating test essay PDF: {e}")
+        return None
 
 if __name__ == "__main__":
+    # Try to create a test essay PDF if it doesn't exist
+    if not os.path.exists("essay.pdf"):
+        print("Creating test essay PDF...")
+        create_test_essay_pdf()
+    
     test_api() 
