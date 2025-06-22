@@ -4,7 +4,7 @@ import os
 
 def test_api():
     """
-    Test script to demonstrate the Flask API usage with PDF upload
+    Test script to demonstrate the Flask API usage with PDF upload and redo functionality
     """
     base_url = "http://localhost:5000"
     
@@ -50,7 +50,16 @@ def test_api():
             print(f"PDF filename: {data['pdf_filename']}")
             print(f"Explanation: {data['explanation']}")
             print(f"PDF text length: {data['pdf_text_length']} characters")
-            print(f"Claude's response: {data['response']}")
+            print(f"Claude's initial response: {data['response']}")
+            
+            # Store the initial feedback for redo testing
+            initial_feedback = data['response']
+            
+            # Test prompt_redo endpoint
+            print("\n" + "="*50)
+            print("Testing prompt_redo endpoint...")
+            test_prompt_redo(base_url, initial_feedback)
+            
         else:
             print(f"Error: {response.json()}")
             
@@ -60,6 +69,86 @@ def test_api():
         print(f"JSON decode error: {e}")
     except FileNotFoundError:
         print(f"File not found: {test_pdf_path}")
+
+def test_prompt_redo(base_url, initial_feedback):
+    """
+    Test the prompt_redo endpoint with initial feedback and professor input
+    """
+    # Sample professor input (could be from speech-to-text)
+    professor_input = "The student deserves higher marks for creativity and original thinking. The essay shows good analytical skills but needs more specific examples. Please adjust the grade accordingly."
+    
+    try:
+        data = {
+            'initial_feedback': initial_feedback,
+            'professor_input': professor_input
+        }
+        
+        response = requests.post(
+            f"{base_url}/api/prompt_redo",
+            data=data
+        )
+        
+        print(f"Status code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Success: {data['success']}")
+            print(f"Professor input: {data['professor_input']}")
+            print(f"Claude's revised response: {data['response']}")
+        else:
+            print(f"Error: {response.json()}")
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Request error: {e}")
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error: {e}")
+
+def test_prompt_redo_standalone():
+    """
+    Test the prompt_redo endpoint with sample data (without needing initial API call)
+    """
+    base_url = "http://localhost:5000"
+    
+    print("Testing prompt_redo endpoint with sample data...")
+    
+    # Sample initial feedback
+    sample_initial_feedback = """Grade: B+ (85/100)
+
+Feedback:
+1. Structure: Good essay structure with clear introduction, body paragraphs, and conclusion
+2. Content: Demonstrates understanding of the topic but lacks depth in analysis
+3. Writing: Clear writing style with minor grammatical errors
+4. Arguments: Presents reasonable arguments but could be more compelling
+5. Evidence: Uses some examples but needs more specific supporting evidence"""
+
+    # Sample professor input
+    sample_professor_input = "This student shows exceptional critical thinking skills that weren't fully recognized in the initial assessment. The analysis is actually quite sophisticated. Please reconsider the grade and provide more detailed feedback on the analytical strengths."
+
+    try:
+        data = {
+            'initial_feedback': sample_initial_feedback,
+            'professor_input': sample_professor_input
+        }
+        
+        response = requests.post(
+            f"{base_url}/api/prompt_redo",
+            data=data
+        )
+        
+        print(f"Status code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Success: {data['success']}")
+            print(f"Professor input: {data['professor_input']}")
+            print(f"Claude's revised response: {data['response']}")
+        else:
+            print(f"Error: {response.json()}")
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Request error: {e}")
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error: {e}")
 
 def create_test_essay_pdf():
     """
@@ -128,4 +217,9 @@ if __name__ == "__main__":
         print("Creating test essay PDF...")
         create_test_essay_pdf()
     
-    test_api() 
+    # Test the full workflow (initial + redo)
+    test_api()
+    
+    # Also test redo endpoint with sample data
+    print("\n" + "="*50)
+    test_prompt_redo_standalone() 

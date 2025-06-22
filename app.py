@@ -143,6 +143,85 @@ The output should be a formatted structure text in the form of points containing
             'error': f'Internal server error: {str(e)}'
         }), 500
 
+
+@app.route('/api/prompt_redo', methods=['POST'])
+def redo_prompt_anthropic():
+    """
+    API endpoint that takes initial feedback and professor input, sends them to Anthropic's Claude API for re-evaluation
+    """
+    try:
+        # Get initial feedback from form data
+        initial_feedback = request.form.get('initial_feedback', '')
+        
+        if not initial_feedback:
+            return jsonify({
+                'error': 'Missing "initial_feedback" field in request'
+            }), 400
+
+        professor_input = request.form.get('professor_input', '')
+        
+        if not professor_input:
+            return jsonify({
+                'error': 'Missing "professor_input" field in request'
+            }), 400
+
+        # Create the prompt with initial feedback and professor input
+        prompt = f"""You are a voice assistant. You gave points to the assignment and feedback to the student. You receive an input which is a text from the professor and it could be a raw STT. Modify your initial feedback and points based on the professor's input.
+
+feedback and points to the students:
+{initial_feedback}
+
+professor's input:
+{professor_input}
+
+The output should be a formatted structure text in the form of points containing the feedback explaining how you graded that assignment."""
+        
+        # Send to Anthropic Claude
+        message = client.messages.create(
+            model="claude-4-sonnet-20250514",
+            max_tokens=1000,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        )
+        
+        # Extract the response content
+        response_content = message.content[0].text
+        
+        return jsonify({
+            'success': True,
+            'response': response_content,
+            'initial_feedback': initial_feedback,
+            'professor_input': professor_input
+        })
+        
+    except anthropic.AuthenticationError:
+        return jsonify({
+            'error': 'Authentication failed. Please check your Anthropic API key.'
+        }), 401
+        
+    except anthropic.RateLimitError:
+        return jsonify({
+            'error': 'Rate limit exceeded. Please try again later.'
+        }), 429
+        
+    except anthropic.APIError as e:
+        return jsonify({
+            'error': f'Anthropic API error: {str(e)}'
+        }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'error': f'Internal server error: {str(e)}'
+        }), 500
+
+
+
+
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """
