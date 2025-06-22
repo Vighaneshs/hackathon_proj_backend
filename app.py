@@ -11,8 +11,9 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Initialize Anthropic client
-client = anthropic.Anthropic()
-
+client = anthropic.Anthropic(
+    api_key=os.getenv("ANTHROPIC_API_KEY")
+)
 
 @app.route('/api/prompt', methods=['POST'])
 def prompt_anthropic():
