@@ -90,28 +90,18 @@ def prompt_anthropic():
             }), 400
         
         # Create the prompt with PDF content and explanation
-        prompt = f"""You are a grading assistant. You will receive:
-1. The assignment content (from a PDF).
-2. (OPTIONAL) A grading rubric with detailed criteria and grade weights.
-note: if the rubric is not provided, you should grade the assignment based on the assignment content and create an arbitrary rubric by yourself.
+        prompt = f"""You are a voice assistant. You take an input which is a text explaining how you have to grade the assignment and the assignment content from a PDF. Give relevant references to course content when possible.
 
-Your task is to:
-- Analyze the assignment using the rubric criteria.
-- Provide concise, bullet-pointed feedback for each criterion.
-- Assign a numeric score for each rubric item.
-- Sum the individual rubric scores to calculate the final grade out of 100.
-- Insert occasional, relevant references to course content (e.g., concepts, theorists, readings) to support your evaluation.
-
-Output format (strictly follow):
+Output format (use this format exactly):
+DO NOT GIVE FINAL GRADE 72 OR 78, MAKE THEM ALL DIFFERENT FROM EACH OTHER.
 Final Grade: XX/100 (in bigger text)
 
-- Criterion Title (X pts): [score]/[max] (bold criteria title)
-  - • Bullet-point feedback 1
-  - • Bullet-point feedback 2
-  - • Make arbitary references to course material (e.g., “...refer to section 2.8 for more info”)
+- Criterion Title (X pts): [score]/[max]
+  - • Point 1
+  - • Point 2
+  - • (Reference: “See section 3.1 for more info”)
 
-Do not include any other text in your response.
-
+Only give this structured output. Do not explain your grading outside of bullet points.
 
 explanation:
 {explanation}
@@ -120,7 +110,9 @@ assignment content from PDF:
 {pdf_text}
 
 The output should be a formatted structure text in the form of points containing the feedback explaining how you graded that assignment.
-Do not give a grade range, give a proper grade."""
+Do not give a grade range, give a proper grade.
+"""
+
         
         # Send to Anthropic Claude with PDF content
         message = client.messages.create(
