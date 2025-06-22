@@ -166,7 +166,7 @@ def redo_prompt_anthropic():
             }), 400
 
         # Create the prompt with initial feedback and professor input
-        prompt = f"""You are a voice assistant. You gave points to the assignment and feedback to the student. You receive an input which is a text from the professor and it could be a raw STT. Modify your initial feedback and points based on the professor's input.
+        prompt = f"""You are a voice assistant. You gave points to the assignment and feedback to the student. You receive an input which is a text from the professor and it could be a raw STT. Giving more weightage to professor's input, modify your initial feedback and points based on the professor's input.
 
 feedback and points to the students:
 {initial_feedback}
